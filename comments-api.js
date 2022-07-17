@@ -1,13 +1,14 @@
 import fs from 'fs';
 import express from 'express';
 import bodyParser from 'body-parser';
-// var express = require("express");
+
+const PORT = process.env.PORT || 5000;
 const app = express();
 
 function init(params) {    
     app.use(bodyParser.json({ type: '*/*' }));
-    app.listen(3000, () => {
-     console.log("Server running on port 3000");
+    app.listen(PORT, () => {
+     console.log(`Server running on port ${PORT}`);
     });
 
     startEndpoints();
@@ -16,6 +17,7 @@ function init(params) {
 function startEndpoints(params) {
     GET_Comments_Endpoint();
     POST_Comments_Endpoint();
+    DELETE_Comments_Endpoint();
 }
 
 function GET_Comments_Endpoint(params) {
@@ -29,21 +31,61 @@ function POST_Comments_Endpoint(params) {
     app.post('/comments', (req, res) => {
         try {
             console.log(req.body);
-            let resObject = { error: { status: 'Error_Server', message: 'Something went wrong. Try again later.' } };
+            let resObject = { error: { internalCode: 'Error_Server', message: 'Something went wrong. Try again later.' } };
             let newComment = req.body;
-            if (newComment.author && newComment.comment) {
+            if (newComment?.author && newComment?.comment) {
                 let commentsFile = JSON.parse(fs.readFileSync('./comments.json'));
-                newComment.date = Date.now().toLocaleString('pt-br');
+                newComment = {
+                    id: commentsFile.lastIndex + 1,
+                    author: newComment.author,
+                    comment: newComment.comment,
+                    date: new Date(Date.now()).toLocaleString('pt-br', {timeZone: 'UTC'})
+                };
+                commentsFile.lastIndex = newComment.id;
                 commentsFile.data.push(newComment);
                 fs.writeFileSync('./comments.json', JSON.stringify(commentsFile));
                 resObject = commentsFile;
                 res.send(commentsFile);
                 return;
             }
-            resObject = { error: { status: 'Error_User_Input', message: 'Please do not leave any blank inputs.' } };
+            resObject = { error: { internalCode: 'Error_User_Input', message: 'Please do not leave any blank inputs.' } };
         }
         catch (error) {
             res.send(resObject);
+        }
+    });
+}
+
+function DELETE_Comments_Endpoint(params) {
+    app.delete('/comments/:id', (req, res) => {
+        let resObject = 'Error_Server;Something went wrong. Try again later.';
+        try {
+            let idToDelete = parseInt(req.params.id);
+            console.log(idToDelete);
+            if (!idToDelete) {
+                resObject = null;
+                throw new Error('Error_User_Input;Could not find specified comment.');
+            }
+            let commentsFile = JSON.parse(fs.readFileSync('./comments.json'));
+            let commentToDelete = commentsFile.data.find(x => x.id === idToDelete);
+            if (!commentToDelete) {
+                resObject = null;
+                throw new Error('Error_User_Input;Could not find specified comment.');
+            }
+            commentsFile.data.splice(commentsFile.data.indexOf(commentToDelete), 1);
+            // commentsFile.lastIndex--;
+            fs.writeFileSync('./comments.json', JSON.stringify(commentsFile));
+            res.send(commentsFile);
+        }
+        catch (error) {
+            console.log(error);
+            if (!resObject) {
+                let [internalCode,message] = error.message.split(';');
+                res.send({error:{ internalCode, message }});
+                return;
+            }
+            let [internalCode,message] = resObject.split(';');
+            res.send({error:{ internalCode, message }});
         }
     })
 }
