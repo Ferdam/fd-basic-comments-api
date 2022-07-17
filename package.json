@@ -1,0 +1,16 @@
+{
+    "name": "fd-basic-comments-api",
+    "version": "1.0.0",
+    "main": "server.js",
+    "type": "module",
+    "scripts": {
+        "dev": "node server.js",
+        "prod": "node server.js"
+    },
+    "author": "Ferdam - Daniel Meyer Dammous",
+    "license": "MIT",
+    "dependencies": {
+        "express": "^4.18.1",
+        "node-fetch": "^3.2.8"
+    }
+}
